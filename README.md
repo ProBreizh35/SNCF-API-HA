@@ -130,7 +130,7 @@ Le `device_id` correspond à l'appareil créé lors de la configuration du traje
 2. Cliquer sur le trajet souhaité
 3. L'URL contient l'identifiant : `.../config/devices/device/XXXX`
 
-> ![Exemple d'identifiant](./assets/device_id_example.png)
+> ![Exemple d'identifiant](./assets/device_id_url.png)
 
 ### ⚙️ Paramètres de la carte
 
