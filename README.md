@@ -200,7 +200,7 @@ Structure :
 
 ## 👨‍💻 Auteur
 
-Développé par [Master13011](https://github.com/Master13011)  
+Développé par [Master13011](https://github.com/Master13011)
 Contributions bienvenues via **Pull Request** ou **Issues**
 
 ---
