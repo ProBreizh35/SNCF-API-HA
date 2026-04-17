@@ -40,7 +40,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SncfDataConfigEntry) -> bool:
-    """Set up SNCF Train as config entry."""    
+    """Set up SNCF Train as config entry."""
     coordinator = SncfUpdateCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
