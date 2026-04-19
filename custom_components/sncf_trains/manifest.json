@@ -1,7 +1,7 @@
 {
   "domain": "sncf_trains",
   "name": "SNCF Trains",
-  "after_dependencies": [],
+  "after_dependencies": ["http"],
   "codeowners": [
     "@Master13011"
   ],

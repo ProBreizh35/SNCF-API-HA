@@ -2,7 +2,6 @@
 
 import logging
 from datetime import timedelta
-from itertools import count
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -145,7 +144,6 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.error("Aucune donnée reçue de l'API SNCF pour le trajet ")
                 continue
 
-            i = count(0)
             trains.update(
                 {
                     id: [

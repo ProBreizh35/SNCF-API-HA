@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import Platform
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_API_KEY,
@@ -25,6 +26,7 @@ from .coordinator import SncfUpdateCoordinator
 type SncfDataConfigEntry = ConfigEntry[SncfUpdateCoordinator]
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 CARD_URL = "/sncf_trains/sncf-train-card.js"
 CARD_FILE = Path(__file__).parent / "www" / "sncf-train-card.js"

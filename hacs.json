@@ -5,6 +5,5 @@
   "homeassistant": "2025.8.2",
   "zip_release": true,
   "filename": "sncf_trains_ha.zip",
-  "content_in_root": false,
-  "frontend": true
+  "content_in_root": false
 }
