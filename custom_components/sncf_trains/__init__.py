@@ -1,10 +1,14 @@
 """The SNCF Train integration."""
 
+from pathlib import Path
 from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_registry import Platform
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_API_KEY,
@@ -15,12 +19,26 @@ from .const import (
     CONF_TIME_START,
     CONF_TO,
     CONF_TRAIN_COUNT,
+    DOMAIN,
 )
 from .coordinator import SncfUpdateCoordinator
 
 type SncfDataConfigEntry = ConfigEntry[SncfUpdateCoordinator]
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+CARD_URL = "/sncf_trains/sncf-train-card.js"
+CARD_FILE = Path(__file__).parent / "www" / "sncf-train-card.js"
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up SNCF Trains component — register the Lovelace card."""
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL, str(CARD_FILE), cache_headers=False)]
+    )
+    add_extra_js_url(hass, CARD_URL)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SncfDataConfigEntry) -> bool:
