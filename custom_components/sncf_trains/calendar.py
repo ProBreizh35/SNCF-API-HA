@@ -18,6 +18,18 @@ from .helpers import get_train_num, parse_datetime
 _LOGGER = logging.getLogger(__name__)
 
 
+async def async_create_event(self, **kwargs):
+    raise NotImplementedError
+
+
+async def async_delete_event(self, uid: str):
+    raise NotImplementedError
+
+
+async def async_update_event(self, uid: str, event: CalendarEvent):
+    raise NotImplementedError
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SncfDataConfigEntry,
@@ -75,7 +87,8 @@ class SNCFCalendar(CoordinatorEntity[SncfUpdateCoordinator], CalendarEntity):
         """Handle updated data from the coordinator."""
         if self._fetch_journeys():
             self._event = min(
-                self._fetch_journeys(), key=lambda x: abs(x.start.replace(tzinfo=None) - datetime.now())
+                self._fetch_journeys(),
+                key=lambda x: abs(x.start.replace(tzinfo=None) - datetime.now()),
             )
             if self._event:
                 self._attr_extra_state_attributes = {
@@ -88,7 +101,7 @@ class SNCFCalendar(CoordinatorEntity[SncfUpdateCoordinator], CalendarEntity):
         self.async_write_ha_state()
 
     async def async_get_events(
-        self, hass: HomeAssistant, start_date: datetime, end_date: datetime
+        self, _hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
         """Return calendar events within a datetime range.
 

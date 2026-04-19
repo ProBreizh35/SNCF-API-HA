@@ -1,5 +1,6 @@
 from typing import Any
-
+import asyncio
+from aiohttp import ClientError
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -26,6 +27,8 @@ from .const import (
     CONF_TIME_START,
     CONF_TO,
     CONF_TRAIN_COUNT,
+    CONF_UPDATE_INTERVAL,
+    CONF_OUTSIDE_INTERVAL,
     DEFAULT_OUTSIDE_INTERVAL,
     DEFAULT_TIME_END,
     DEFAULT_TIME_START,
@@ -72,7 +75,7 @@ class SncfTrainsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             results = await api.search_stations("paris")
             return bool(results)
-        except Exception:
+        except (ClientError, asyncio.TimeoutError):
             return False
 
     @classmethod
@@ -102,10 +105,22 @@ class SncfTrainsOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        entry = self.config_entry
+
         DATA_SCHEMA = vol.Schema(
             {
-                vol.Required("update_interval", default=DEFAULT_UPDATE_INTERVAL): int,
-                vol.Required("outside_interval", default=DEFAULT_OUTSIDE_INTERVAL): int,
+                vol.Required(
+                    CONF_UPDATE_INTERVAL,
+                    default=entry.options.get(
+                        CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
+                    ),
+                ): int,
+                vol.Required(
+                    CONF_OUTSIDE_INTERVAL,
+                    default=entry.options.get(
+                        CONF_OUTSIDE_INTERVAL, DEFAULT_OUTSIDE_INTERVAL
+                    ),
+                ): int,
             }
         )
 
