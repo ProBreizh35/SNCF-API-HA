@@ -64,15 +64,21 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(err) from err
 
     def _build_datetime_param(self, time_start, time_end) -> str:
-        """Construit le paramètre datetime pour l'API."""
+        """Construit le paramètre datetime pour l'API (ignore le passé)."""
         now = dt_util.now()
         h_start, m_start = map(int, time_start.split(":"))
         h_end, m_end = map(int, time_end.split(":"))
+        
         dt_start = now.replace(hour=h_start, minute=m_start, second=0, microsecond=0)
         dt_end = now.replace(hour=h_end, minute=m_end, second=0, microsecond=0)
 
         if now > dt_end:
+            # Si on a dépassé la fin de la plage aujourd'hui, on cherche pour demain
             dt_start += timedelta(days=1)
+        elif now > dt_start:
+            # CORRECTION : Si on est PENDANT la plage horaire, on cherche à partir de MAINTENANT
+            # (On n'interroge plus les trains déjà passés !)
+            dt_start = now
 
         return dt_start.strftime("%Y%m%dT%H%M%S")
 
@@ -142,7 +148,7 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
             for attempt in range(1, max_retries + 1):
                 try:
                     journeys = await self.api_client.fetch_journeys(
-                        departure, arrival, datetime_str, count=20 #By deaults = 10
+                        departure, arrival, datetime_str, count=20 #By defaults = 10
                     )
                     if journeys is not None:
                         break  # succès, on sort du retry

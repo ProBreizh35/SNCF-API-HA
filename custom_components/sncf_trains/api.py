@@ -22,7 +22,7 @@ class SncfApiClient:
         self._timeout = timeout
 
     async def fetch_departures(
-        self, stop_id: str, max_results: int = 20 # By default = 10
+        self, stop_id: str, max_results: int = 20 #By default = 10
     ) -> Optional[List[dict]]:
         if stop_id.startswith("stop_area:"):
             url = f"{API_BASE}/v1/coverage/sncf/stop_areas/{stop_id}/departures"
@@ -64,7 +64,7 @@ class SncfApiClient:
             return None
 
     async def fetch_journeys(
-        self, from_id: str, to_id: str, datetime_str: str, count: int = 5
+        self, from_id: str, to_id: str, datetime_str: str, count: int = 20
     ) -> Optional[List[dict]]:
         url = f"{API_BASE}/v1/coverage/sncf/journeys"
         params_raw: dict[str, object] = {
