@@ -1,0 +1,92 @@
+{
+  "title": "Trains SNCF",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Clé API SNCF",
+        "description": "Entrez votre clé API SNCF pour commencer.",
+        "data": {
+          "api_key": "Clé API"
+        }
+      }
+    },
+    "error": {
+      "invalid_api_key": "Clé API invalide. Veuillez vérifier et réessayer."
+    },
+    "abort": {
+      "reconfigure_successful": "Compose reconfiguré avec succès"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "Définissez les intervalles de mise à jour.",
+        "data": {
+          "update_interval": "Intervalle pendant la plage horaire (minutes)",
+          "outside_interval": "Intervalle en dehors de la plage horaire (minutes)"
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "train": {
+      "initiate_flow": {
+        "user": "Ajouter un trajet",
+        "reconfigure": "Reconfigurer un trajet"
+      },
+      "entry_type": "Train",
+      "step": {
+        "departure_city": {
+          "title": "Choisissez la ville de départ",
+          "data": {
+            "departure_city": "Nom de la ville"
+          }
+        },
+        "departure_station": {
+          "title": "Choisissez la gare de départ",
+          "data": {
+            "departure_station": "Nom de la gare"
+          }
+        },
+        "arrival_city": {
+          "title": "Choisissez la ville d'arrivée",
+          "data": {
+            "arrival_city": "Nom de la ville"
+          }
+        },
+        "arrival_station": {
+          "title": "Choisissez la gare d'arrivée",
+          "data": {
+            "arrival_station": "Nom de la gare"
+          }
+        },
+        "time_range": {
+          "title": "Choisissez la plage horaire",
+          "data": {
+            "time_start": "Heure de départ",
+            "time_end": "Heure d'arrivé",
+            "train_count": "Nombre de trains",
+            "show_route_details": "Afficher les arrêts intermédiaires"
+          }
+        },
+        "reconfigure": {
+          "title": "Choisissez la plage horaire",
+          "data": {
+            "time_start": "Heure de départ",
+            "time_end": "Heure d'arrivé",
+            "train_count": "Nombre de trains",
+            "show_route_details": "Afficher les arrêts intermédiaires"
+          }
+        }
+      },
+      "error": {
+        "no_stations": "Aucune gare trouvée pour cette ville."
+      },
+      "abort": {
+        "already_configured_as_entry": "Ce trajet est déjà configuré.",
+        "reconfigure_successful": "Trajet reconfiguré avec succès"
+      }
+    }
+  }
+}
