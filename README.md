@@ -1,4 +1,31 @@
-# 🚄 Intégration SNCF Trains pour Home Assistant
+# ⚠️ DÉVELOPPEMENT ACTIF / ACTIVE DEVELOPMENT
+
+> [!CAUTION]
+> **Ce projet est actuellement en phase de développement intensif.**
+> Les fonctionnalités évoluent rapidement. Assurez-vous d'utiliser la dernière version du `sensor.py` et de la `sncf-train-card.js` pour une compatibilité totale.
+
+---
+
+### 🚀 Dernières mises à jour ferroviaires (20 Avril 2026)
+
+Le système a été lourdement modifier :
+
+* **🕒 Correction du "Time-Glitch" (Décalage horaire) :** **Résolution définitive** du bug critique qui affichait des trains "il y a 8 heures". Les capteurs gèrent désormais nativement les fuseaux horaires (Timezone ISO 8601) pour un affichage synchronisé avec le temps réel de Home Assistant.
+* **📡 Radar de Ligne Avancé :** Intégration d'un "thermomètre de ligne" dynamique affichant tous les arrêts intermédiaires directement sur la carte. **⚠️ Ce paramètre est désactivé par défaut pour alléger l'affichage.**
+* **🔍 Analyse des Perturbations :** * Extraction de la **cause officielle** du retard (ex: intervention, panne matériel).
+    * **[BÊTA]** Détection des **arrêts supprimés** (`deleted`) ou **exceptionnels** (`added`). 
+    > *Note : Cette fonctionnalité est en cours de validation technique. N'ayant pas encore subi de suppression réelle durant les tests, le rendu visuel est basé sur les spécifications de l'API SNCF et attend une confirmation "en conditions réelles".*
+
+---
+
+### 📸 Aperçu Visuel
+
+| Version Précédente (Épurée) | Nouvelle Version (Radar de Ligne) |
+| :---: | :---: |
+| <img src="https://github.com/user-attachments/assets/eaec1a10-eea5-4176-a8b4-0a0348860e82" width="400" alt="Avant"> | <img src="https://github.com/user-attachments/assets/184cb93b-e78c-4a31-82f6-1ec8a42c81fb" width="400" alt="Maintenant"> |
+
+> *Note : Le radar de ligne affiche désormais tous les arrêts intermédiaires, mais peut être désactivé dans les options pour retrouver le design minimaliste.*
+
 
 ![Home Assistant](https://img.shields.io/badge/Home--Assistant-2024.5+-blue?logo=home-assistant)
 ![Custom Component](https://img.shields.io/badge/Custom%20Component-oui-orange)
