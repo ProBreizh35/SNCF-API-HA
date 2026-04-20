@@ -142,7 +142,7 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
             for attempt in range(1, max_retries + 1):
                 try:
                     journeys = await self.api_client.fetch_journeys(
-                        departure, arrival, datetime_str, count=10
+                        departure, arrival, datetime_str, count=20 #By deaults = 10
                     )
                     if journeys is not None:
                         break  # succès, on sort du retry
