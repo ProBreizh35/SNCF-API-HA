@@ -1,4 +1,5 @@
 # ⚠️ DÉVELOPPEMENT ACTIF / ACTIVE DEVELOPMENT
+# 🚄 Intégration SNCF Trains pour Home Assistant
 
 > [!CAUTION]
 > **Ce projet est actuellement en phase de développement intensif.**
@@ -6,15 +7,16 @@
 
 ---
 
-### 🚀 Dernières mises à jour ferroviaires (20 Avril 2026)
+### 🚀 Dernières mises à jour ferroviaires (Avril 2026)
 
-Le système a été lourdement modifier :
+Le système a été lourdement modifié :
 
-* **🕒 Correction du "Time-Glitch" (Décalage horaire) :** **Résolution définitive** du bug critique qui affichait des trains "il y a 8 heures". Les capteurs gèrent désormais nativement les fuseaux horaires (Timezone ISO 8601) pour un affichage synchronisé avec le temps réel de Home Assistant.
-* **📡 Radar de Ligne Avancé :** Intégration d'un "thermomètre de ligne" dynamique affichant tous les arrêts intermédiaires directement sur la carte. **⚠️ Ce paramètre est désactivé par défaut pour alléger l'affichage.**
-* **🔍 Analyse des Perturbations :** * Extraction de la **cause officielle** du retard (ex: intervention, panne matériel).
-    * **[BÊTA]** Détection des **arrêts supprimés** (`deleted`) ou **exceptionnels** (`added`). 
-    > *Note : Cette fonctionnalité est en cours de validation technique. N'ayant pas encore subi de suppression réelle durant les tests, le rendu visuel est basé sur les spécifications de l'API SNCF et attend une confirmation "en conditions réelles".*
+* **🕒 Correction du "Time-Glitch" (Décalage horaire) :** **Résolution définitive** du bug critique qui affichait des trains "il y a 8 heures". Les capteurs gèrent désormais nativement les fuseaux horaires (Timezone ISO 8601).
+* **📡 Radar de Ligne (V3.3) :** Intégration d'un "thermomètre de ligne" dynamique avec détection des **badges d'arrêts supprimés** ou **exceptionnels**. ⚠️ *Ce paramètre est désactivé par défaut.*
+* **🎭 Moteur d'Animation Dynamique :** Possibilité de synchroniser la vitesse de l'emoji train sur la durée réelle du trajet (`duration_minutes`).
+* **🔍 Analyse des Perturbations :** * Extraction de la **cause officielle** du retard (ex: Panne de signalisation, Défaut d'alimentation).
+    * Gestion visuelle des **Annulations** (croix rouge et rail d'alerte).
+    * Code couleur intelligent : **Orange** pour les retards, **Rouge** pour les suppressions.
 
 ---
 
@@ -22,7 +24,8 @@ Le système a été lourdement modifier :
 
 | Version Précédente (Épurée) | Nouvelle Version (Radar de Ligne) |
 | :---: | :---: |
-| <img src="https://github.com/user-attachments/assets/eaec1a10-eea5-4176-a8b4-0a0348860e82" width="400" alt="Avant"> | <img src="https://github.com/user-attachments/assets/184cb93b-e78c-4a31-82f6-1ec8a42c81fb" width="400" alt="Maintenant"> |
+| <img src="https://github.com/user-attachments/assets/eaec1a10-eea5-4176-a8b4-0a0348860e82" width="400" alt="Avant"> | <img src="https://github.com/user-attachments/assets/31d8e7c4-a606-49df-a5ab-59db476e1ff8" width="400" alt="Maintenant"> |
+
 
 > *Note : Le radar de ligne affiche désormais tous les arrêts intermédiaires, mais peut être désactivé dans les options pour retrouver le design minimaliste.*
 
