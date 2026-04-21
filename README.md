@@ -9,7 +9,7 @@
 
 ### 🚀 Dernières mises à jour ferroviaires (Avril 2026)
 
-Le système a été lourdement modifié pour offrir une précision de niveau "PC de Crise SNCF" :
+Le système a été lourdement modifié :
 
 * **🕒 Correction du "Time-Glitch" (Décalage horaire) :** **Résolution définitive** du bug critique qui affichait des trains "il y a 8 heures". Les capteurs gèrent désormais nativement les fuseaux horaires (Timezone ISO 8601).
 * **📡 Radar de Ligne (V3.3) :** Intégration d'un "thermomètre de ligne" dynamique avec détection des **badges d'arrêts supprimés** ou **exceptionnels**. ⚠️ *Ce paramètre est désactivé par défaut.*
