@@ -35,6 +35,7 @@ async def async_setup_entry(
 
     for subentry in entry.subentries.values():
         journeys = coordinator.data.get(subentry.subentry_id, [])
+        # Dynamisme : on crée autant de capteurs que demandé dans la config
         display_count = min(len(journeys), subentry.data.get("train_count", 0))
         sensors = []
 
@@ -117,33 +118,39 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
         self.async_write_ha_state()
 
     def _extra_attributes(self, journey: dict[str, Any]) -> dict[str, Any]:
+        """Calcul des attributs détaillés pour chaque train."""
         section = journey.get("sections", [{}])[0]
 
-        # 1. Calcul du retard
-        arr_dt = parse_datetime(journey.get("arrival_date_time", ""))
-        base_arr_dt = parse_datetime(section.get("base_arrival_date_time"))
-        delay_arr = int((arr_dt - base_arr_dt).total_seconds() / 60) if arr_dt and base_arr_dt else 0
+        # 1. Gestion des dates avec fallback (Double Miroir pour le développeur)
+        base_dep_raw = section.get("base_departure_date_time")
+        base_arr_raw = section.get("base_arrival_time") or section.get("base_arrival_date_time")
+        
+        real_dep_raw = journey.get("departure_date_time") or base_dep_raw
+        real_arr_raw = journey.get("arrival_date_time") or base_arr_raw
 
-        dep_dt = parse_datetime(journey.get("departure_date_time", ""))
-        base_dep_dt = parse_datetime(section.get("base_departure_date_time"))
-        delay_dep = int((dep_dt - base_dep_dt).total_seconds() / 60) if dep_dt and base_dep_dt else 0
+        # Formatage final (Zéro n/a ici)
+        arrival_time = format_time(real_arr_raw)
+        departure_time = format_time(real_dep_raw)
 
-        delay = max(delay_arr, delay_dep)
+        # 2. Calcul du retard (minutes)
+        arr_dt = parse_datetime(real_arr_raw)
+        base_arr_dt = parse_datetime(base_arr_raw)
+        delay = 0
+        if arr_dt and base_arr_dt:
+            delay = int((arr_dt - base_arr_dt).total_seconds() / 60)
 
-        # 2. Détection d'annulation et Cause
+        # 3. Détection d'annulation et Cause
         status = journey.get("status", "")
         section_status = section.get("status", "")
         is_canceled = (status == "NO_SERVICE" or section_status == "NO_SERVICE")
 
-        # Extraction de la cause du retard/problème
         delay_cause = section.get("cause", "")
         if not delay_cause:
-            # On cherche dans les messages de perturbation globaux
             messages = journey.get("messages", [])
             if messages:
                 delay_cause = messages[0].get("text", "")
 
-        # 3. Plan de vol structuré (V3.5 Precision Radar)
+        # 4. Plan de vol structuré (Precision Radar)
         stops_schedule = []
         route_details = ""
         show_routes = self.coordinator.entry.subentries[self.tid].data.get("show_route_details", False)
@@ -152,15 +159,12 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
             impacted_stops = section.get("impacted_stops", [])
             stops_list = []
 
-            # Si on a des données temps réel (JSON de ce midi)
             if impacted_stops:
                 for stop in impacted_stops:
                     stop_name = stop.get("stop_point", {}).get("name", "")
-                    # Heures brutes pour comparaison
                     b_raw = stop.get("base_departure_time") or stop.get("base_arrival_time")
                     a_raw = stop.get("amended_departure_time") or stop.get("amended_arrival_time")
 
-                    # Formatage HH:MM
                     b_time = f"{b_raw[:2]}:{b_raw[2:4]}" if b_raw and len(b_raw) >= 4 else ""
                     a_time = f"{a_raw[:2]}:{a_raw[2:4]}" if a_raw and len(a_raw) >= 4 else ""
 
@@ -168,7 +172,7 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
                     prefix = ""
                     if stop_effect == "deleted":
                         prefix = "[SUPPRIMÉ] "
-                    if stop_effect == "added":
+                    elif stop_effect == "added":
                         prefix = "[NOUVEAU] "
 
                     stops_list.append(f"{prefix}{stop_name} ({a_time if a_time else b_time})")
@@ -179,7 +183,6 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
                         "effect": stop_effect
                     })
             else:
-                # Plan de vol classique
                 stops_data = section.get("stop_date_times", [])
                 for stop in stops_data:
                     stop_name = stop.get("stop_point", {}).get("name", "")
@@ -191,30 +194,29 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
                         prefix = ""
                         if stop_effect == "deleted":
                             prefix = "[SUPPRIMÉ] "
-                        if stop_effect == "added":
+                        elif stop_effect == "added":
                             prefix = "[NOUVEAU] "
 
                         stops_list.append(f"{prefix}{stop_name} ({formatted_time})")
                         just_time = formatted_time.split(" - ")[-1] if " - " in formatted_time else formatted_time
                         stops_schedule.append({
                             "name": stop_name,
-                            "time": just_time, # Pour compatibilité V1
+                            "time": just_time,
                             "base_time": just_time,
                             "amended_time": None,
                             "effect": stop_effect
                         })
-
             route_details = " ➔ ".join(stops_list)
 
         return {
-            "departure_time": format_time(journey.get("departure_date_time", "")),
-            "arrival_time": format_time(journey.get("arrival_date_time", "")),
-            "base_departure_time": format_time(section.get("base_departure_date_time")),
-            "base_arrival_time": format_time(section.get("base_arrival_time")),
+            "departure_time": departure_time,
+            "arrival_time": arrival_time,
+            "base_departure_time": format_time(base_dep_raw),
+            "base_arrival_time": arrival_time,  # On remet l'info temps réel ici aussi
             "delay_minutes": delay,
             "delay_cause": delay_cause,
             "duration_minutes": get_duration(journey),
-            "has_delay": (delay > 0 or len(delay_cause) > 0),
+            "has_delay": delay > 0,
             "canceled": is_canceled,
             "route_details": route_details,
             "stops_schedule": stops_schedule,
@@ -255,7 +257,9 @@ class SncfAllTrainsLineSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEn
             section = journey.get("sections", [{}])[0]
             dep_dt = parse_datetime(journey.get("departure_date_time", ""))
             base_dep_dt = parse_datetime(section.get("base_departure_date_time"))
-            delay = int((dep_dt - base_dep_dt).total_seconds() / 60) if dep_dt and base_dep_dt else 0
+            delay = 0
+            if dep_dt and base_dep_dt:
+                delay = int((dep_dt - base_dep_dt).total_seconds() / 60)
 
             departure_times.append(format_time(journey.get("departure_date_time", "")))
             delays.append(str(delay))
