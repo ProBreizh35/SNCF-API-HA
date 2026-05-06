@@ -1,4 +1,4 @@
-// SNCF Train Card V3.5.0
+// SNCF Train Card V3.5.1
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'sncf-train-card',

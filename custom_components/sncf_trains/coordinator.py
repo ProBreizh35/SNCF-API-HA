@@ -8,7 +8,6 @@ from aiohttp import ClientError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -71,10 +70,8 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
         dt_end = now.replace(hour=h_end, minute=m_end, second=0, microsecond=0)
 
         if now > dt_end:
-            # Si la plage est finie pour aujourd'hui, on vise demain
             dt_start += timedelta(days=1)
         elif now > dt_start:
-            # Si on est dans la plage, on commence à "maintenant"
             dt_start = now
 
         return dt_start.strftime("%Y%m%dT%H%M%S")
@@ -91,7 +88,6 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
         if end <= start:
             end += timedelta(days=1)
 
-        # Fenêtre d'activation 1h avant le début de la plage
         pre_start = start - timedelta(hours=1)
 
         if now < pre_start:
@@ -123,34 +119,40 @@ class SncfUpdateCoordinator(DataUpdateCoordinator):
             arrival = entry.data[CONF_TO]
             time_start = entry.data[CONF_TIME_START]
             time_end = entry.data[CONF_TIME_END]
-            # On récupère le nombre de trains souhaité par l'utilisateur
             train_count = entry.data.get("train_count", 10)
 
             update_intervals.append(self._adjust_update_interval(time_start, time_end))
             datetime_str = self._build_datetime_param(time_start, time_end)
             
-            journeys = None
+            journeys_data = None
             for attempt in range(1, max_retries + 1):
                 try:
-                    journeys = await self.api_client.fetch_journeys(
+                    journeys_data = await self.api_client.fetch_journeys(
                         departure, arrival, datetime_str, count=train_count
                     )
-                    if journeys is not None:
+                    if journeys_data is not None:
                         break
                 except (ClientError, asyncio.TimeoutError, RuntimeError) as err:
                     _LOGGER.warning("Tentative %d/%d échouée: %s", attempt, max_retries, err)
                 await asyncio.sleep(retry_delay)
 
-            if journeys is None or not isinstance(journeys, list):
+            # Vérification du dictionnaire
+            if journeys_data is None or not isinstance(journeys_data, dict):
                 continue
 
-            # Filtrage des trajets directs uniquement
-            trains[subentry_id] = [
-                j for j in journeys
-                if isinstance(j, dict) and len(j.get("sections", [])) == 1
-            ]
+            # Extraction séparée
+            journeys_list = journeys_data.get("journeys", [])
+            disruptions_list = journeys_data.get("disruptions", [])
 
-        # Mise à jour de l'intervalle global du coordinateur (le plus petit des trajets)
+            valid_journeys = []
+            for j in journeys_list:
+                if isinstance(j, dict) and len(j.get("sections", [])) == 1:
+                    # 👈 LA MAGIE : On injecte les perturbations dans chaque trajet
+                    j["_disruptions"] = disruptions_list
+                    valid_journeys.append(j)
+
+            trains[subentry_id] = valid_journeys
+
         if update_intervals:
             new_interval = min(update_intervals)
             if self.update_interval != new_interval:

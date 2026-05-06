@@ -35,15 +35,12 @@ async def async_setup_entry(
 
     for subentry in entry.subentries.values():
         journeys = coordinator.data.get(subentry.subentry_id, [])
-        # Dynamisme : on crée autant de capteurs que demandé dans la config
         display_count = min(len(journeys), subentry.data.get("train_count", 0))
         sensors = []
 
-        # Capteurs individuels pour chaque train
         for idx in range(display_count):
             sensors.append(SncfTrainSensor(coordinator, subentry.subentry_id, idx))
 
-        # Capteur résumé ligne par ligne
         sensors.append(SncfAllTrainsLineSensor(coordinator, subentry.subentry_id))
 
         async_add_entities(
@@ -90,16 +87,12 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
         self.tid = train_id
         self.jid = journey_id
         entry = self.coordinator.entry.subentries[train_id]
-        journey = coordinator.data[train_id][journey_id]
-        section = journey.get("sections", [{}])[0]
-        departure_time = parse_datetime(section.get("base_departure_date_time", ""))
 
         self.departure = entry.data[CONF_FROM]
         self.arrival = entry.data[CONF_TO]
 
         self._attr_name = f"Train {journey_id + 1}"
         self._attr_unique_id = f"{entry.subentry_id}_{journey_id}"
-        self._attr_extra_state_attributes = self._extra_attributes(journey)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.subentry_id)},
             "name": f"SNCF {entry.data[CONF_DEPARTURE_NAME]} → {entry.data[CONF_ARRIVAL_NAME]}",
@@ -107,28 +100,45 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
             "model": "API",
             "entry_type": DeviceEntryType.SERVICE,
         }
-        self._attr_native_value = departure_time
+
+        # On appelle la fonction de mise à jour dès la création pour mutualiser le code
+        self._update_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        journey = self.coordinator.data[self.tid][self.jid]
-        section = journey.get("sections", [{}])[0]
-        self._attr_native_value = parse_datetime(section.get("base_departure_date_time", ""))
-        self._attr_extra_state_attributes = self._extra_attributes(journey)
+        """Appelé à chaque mise à jour de l'API."""
+        self._update_state()
         self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        """Met à jour les valeurs du capteur de manière sécurisée."""
+        journeys = self.coordinator.data.get(self.tid, [])
+
+        # SÉCURITÉ : On vérifie si le train existe bien dans la liste !
+        if self.jid < len(journeys):
+            journey = journeys[self.jid]
+            section = journey.get("sections", [{}])[0]
+
+            self._attr_native_value = parse_datetime(section.get("base_departure_date_time", ""))
+            self._attr_extra_state_attributes = self._extra_attributes(journey)
+            self._attr_available = True  # Le capteur est actif
+        else:
+            # Si l'API est KO ou renvoie moins de trains que prévu
+            self._attr_native_value = None
+            self._attr_extra_state_attributes = {}
+            self._attr_available = False # Le capteur passe en "Indisponible" proprement
 
     def _extra_attributes(self, journey: dict[str, Any]) -> dict[str, Any]:
         """Calcul des attributs détaillés pour chaque train."""
         section = journey.get("sections", [{}])[0]
 
-        # 1. Gestion des dates avec fallback (Double Miroir pour le développeur)
+        # 1. Gestion des dates avec fallback
         base_dep_raw = section.get("base_departure_date_time")
         base_arr_raw = section.get("base_arrival_time") or section.get("base_arrival_date_time")
-        
+
         real_dep_raw = journey.get("departure_date_time") or base_dep_raw
         real_arr_raw = journey.get("arrival_date_time") or base_arr_raw
 
-        # Formatage final (Zéro n/a ici)
         arrival_time = format_time(real_arr_raw)
         departure_time = format_time(real_dep_raw)
 
@@ -145,12 +155,25 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
         is_canceled = (status == "NO_SERVICE" or section_status == "NO_SERVICE")
 
         delay_cause = section.get("cause", "")
+
         if not delay_cause:
             messages = journey.get("messages", [])
             if messages:
                 delay_cause = messages[0].get("text", "")
 
-        # 4. Plan de vol structuré (Precision Radar)
+        if not delay_cause:
+            disruptions = journey.get("_disruptions", [])
+            links = section.get("display_informations", {}).get("links", [])
+            disruption_ids = [link.get("id") for link in links if link.get("type") == "disruption"]
+
+            for disruption in disruptions:
+                if disruption.get("id") in disruption_ids:
+                    disruption_msgs = disruption.get("messages", [])
+                    if disruption_msgs:
+                        delay_cause = disruption_msgs[0].get("text", "")
+                        break
+
+        # 4. Plan de vol structuré
         stops_schedule = []
         route_details = ""
         show_routes = self.coordinator.entry.subentries[self.tid].data.get("show_route_details", False)
@@ -212,7 +235,7 @@ class SncfTrainSensor(CoordinatorEntity[SncfUpdateCoordinator], SensorEntity):
             "departure_time": departure_time,
             "arrival_time": arrival_time,
             "base_departure_time": format_time(base_dep_raw),
-            "base_arrival_time": arrival_time,  # On remet l'info temps réel ici aussi
+            "base_arrival_time": arrival_time,
             "delay_minutes": delay,
             "delay_cause": delay_cause,
             "duration_minutes": get_duration(journey),
