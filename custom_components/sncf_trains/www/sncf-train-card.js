@@ -1,53 +1,201 @@
 // Ajouter au registre des cartes personnalisées
-(window.customCards = window.customCards || []).push({
+globalThis.customCards ||= []
+globalThis.customCards.push({
   type: 'sncf-train-card',
   name: 'SNCF Train Card',
-  description: 'Carte personnalisée animée pour afficher les trains SNCF en temps réel'
+  description: 'Carte personnalisée animée pour afficher les trains SNCF en temps réel',
+  preview: true,
+  configurable: true
 });
 
 class SncfTrainCard extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
+    this.attachShadow({mode: 'open'});
     this.updateInterval = null;
     this.lastTrainSignature = null;
     this._lastRenderTime = 0;
   }
 
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Permet de définir la configuration de la carte, avec validation et gestion des changements de device_id pour forcer une mise à jour immédiate
+   * @param {Object} config - La configuration de la carte, qui doit inclure au minimum un device_id valide pour fonctionner correctement, et peut inclure d'autres paramètres pour personnaliser l'affichage
+   * @throws {Error} Si le device_id n'est pas défini, une erreur est levée pour informer l'utilisateur de la nécessité de fournir cette information essentielle
+   */
   setConfig(config) {
     if (!config.device_id) {
       throw new Error('You need to define device_id');
     }
-    
+
     const previousDeviceId = this.config ? this.config.device_id : null;
     const deviceIdChanged = previousDeviceId && previousDeviceId !== config.device_id;
-    
-    this.config = {
-      device_id: config.device_id,
-      train_lines: config.train_lines || 3,
-      title: config.title || 'Trains SNCF',
-      train_emoji: config.train_emoji || '🚅',
-      train_emoji_axial_symmetry: config.train_emoji_axial_symmetry || true,
-      train_station_emoji: config.train_station_emoji || '🚉',
-      animation_duration: config.animation_duration || 30,
-      update_interval: config.update_interval || 30000,
-      ...config
-    };
-    
+
+    this.config = config;
+
     // Forcer la mise à jour immédiate si device_id a changé
     if (deviceIdChanged) {
       this.stopUpdateTimer();
       this.startUpdateTimer();
     }
-    
+
     // Toujours forcer un nouveau rendu
     this.render();
   }
 
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Fournit la configuration du formulaire pour l'éditeur de Lovelace, avec des labels et des aides personnalisés
+   */
+  static getConfigForm() {
+    return {
+      schema: [
+        {
+          name: "device_id",
+          required: true,
+          selector: {
+            device: {
+              filter: {
+                integration: "sncf_trains"
+              }
+            }
+          }
+        },
+        {
+          name: "title",
+          selector: {text: {}},
+        },
+        {
+          name: "train_lines",
+          selector: {
+            number: {
+              min: 1,
+              max: 10,
+              step: 1,
+            },
+          },
+        },
+        {
+          name: "animation_duration",
+          selector: {
+            number: {
+              min: 0,
+              max: 100,
+              step: 1,
+            },
+          },
+        },
+        {
+          name: "update_interval",
+          selector: {
+            number: {
+              min: 5000,
+              step: 1000,
+            },
+          },
+        },
+        {
+          type: "grid",
+          name: "",
+          column_min_width: "150px",
+          schema: [
+            {
+              name: "train_emoji_axial_symmetry",
+              selector: {boolean: {}},
+            },
+            {
+              name: "train_emoji",
+              selector: {
+                icon: {},
+              },
+            },
+            {
+              name: "show_departure_station",
+              selector: {boolean: {}},
+            },
+            {
+              name: "departure_station_emoji",
+              selector: {
+                icon: {},
+              },
+            },
+            {
+              name: "show_arrival_station",
+              selector: {boolean: {}},
+            },
+            {
+              name: "arrival_station_emoji",
+              selector: {
+                icon: {},
+              },
+            },
+          ]
+        },
+      ],
+      computeLabel: (schema) => {
+        const labels = {
+          device_id: "ID du Device (obligatoire)",
+          title: "Titre de la carte",
+          train_emoji: "Emoji du train",
+          train_lines: "Nombre de trains à afficher",
+          animation_duration: "Durée d'animation (minutes)",
+          update_interval: "Intervalle de mise à jour (ms)",
+          departure_station_emoji: "Emoji de la gare de départ",
+          arrival_station_emoji: "Emoji de la gare d'arrivée",
+          show_departure_station: "Afficher les informations de départ",
+          show_arrival_station: "Afficher les informations d'arrivée",
+          train_emoji_axial_symmetry: "Symétrie axiale du train",
+        };
+        return labels[schema.name] || undefined;
+      },
+      computeHelper: (schema) => {
+        const helpers = {
+          device_id: "L'identifiant unique du device SNCF à afficher",
+          title: "Le titre affiché en haut de la carte",
+          train_emoji: "L'emoji représentant le train",
+          train_lines: "Le nombre de trains à afficher (1-10)",
+          animation_duration: "Nombre de minutes avant le départ pour que le train apparaisse",
+          update_interval: "Fréquence de rafraîchissement en millisecondes (ex: 30000 pour 30s)",
+          departure_station_emoji: "L'emoji pour la gare de départ",
+          arrival_station_emoji: "L'emoji pour la gare d'arrivée",
+          show_departure_station: "Affiche ou masque la gare de départ",
+          show_arrival_station: "Affiche ou masque la gare d'arrivée",
+          train_emoji_axial_symmetry: "Retourner l'emoji du train horizontalement",
+        };
+        return helpers[schema.name] || undefined;
+      },
+    };
+  }
+
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Fournit une configuration par défaut pour le mode aperçu dans l'éditeur de Lovelace
+   */
+  static getStubConfig() {
+    return {
+      device_id: '',
+      title: 'Trains SNCF',
+      train_lines: 3,
+      animation_duration: 30,
+      update_interval: 30000,
+      train_emoji_axial_symmetry: true,
+      train_emoji: '🚅',
+      show_departure_station: true,
+      departure_station_emoji: '',
+      show_arrival_station: true,
+      arrival_station_emoji: '🚉',
+    };
+  }
+
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Permet de recevoir l'objet Home Assistant et de déclencher une vérification des mises à jour des trains pour éviter les rendus inutiles
+   * @param {Object} hass - L'objet Home Assistant fourni par le système, utilisé pour accéder aux états et aux services, et pour déclencher des mises à jour de la carte lorsque les données des trains changent
+   */
   set hass(hass) {
     const previousHass = this._hass;
     this._hass = hass;
-    
+
     // Vérifier si les données des trains ont changé
     if (this.config && previousHass) {
       this.checkForTrainUpdates(previousHass, hass);
@@ -56,14 +204,43 @@ class SncfTrainCard extends HTMLElement {
     }
   }
 
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Démarre un timer pour forcer des mises à jour régulières, ce qui est nécessaire pour capturer les changements de données en temps réel
+   */
+  connectedCallback() {
+    this.startUpdateTimer();
+  }
+
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Arrête le timer de mise à jour pour éviter les fuites de mémoire lorsque la carte est retirée du DOM
+   */
+  disconnectedCallback() {
+    this.stopUpdateTimer();
+  }
+
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Calcule la taille de la carte en fonction du nombre de lignes de train à afficher, avec une taille minimale pour éviter les problèmes d'affichage
+   */
+  getCardSize() {
+    return Math.max(3, this.config.train_lines + 1);
+  }
+
+  /**
+   * Vérifie si les données des trains ont changé en comparant une signature des données actuelles avec la dernière signature connue, et ne fait un rendu que si nécessaire pour optimiser les performances
+   * @param {Object} previousHass - L'objet Home Assistant précédent pour comparer les données
+   * @param {Object} currentHass - L'objet Home Assistant actuel pour récupérer les données fraîches
+   */
   async checkForTrainUpdates(previousHass, currentHass) {
     try {
       // Récupérer les entités actuelles
       const currentTrains = await this.getTrainEntities();
-      
+
       // Créer une signature des données actuelles
       const currentSignature = this.createTrainSignature(currentTrains);
-      
+
       // Comparer avec la signature précédente
       if (currentSignature !== this.lastTrainSignature) {
         this.lastTrainSignature = currentSignature;
@@ -71,24 +248,25 @@ class SncfTrainCard extends HTMLElement {
       }
     } catch (error) {
       // En cas d'erreur, faire un rendu quand même
+      console.error(error);
       this.render();
     }
   }
 
+  /**
+   * Crée une signature unique pour les données des trains en concaténant les informations clés de chaque train, ce qui permet de détecter facilement les changements sans faire un rendu complet à chaque fois
+   * @param {Array} trains - Un tableau d'entités de train
+   * @returns {string} Une chaîne de caractères représentant la signature des données des trains
+   */
   createTrainSignature(trains) {
-    return trains.map(train => 
+    return trains.map(train =>
       `${train.entity_id}:${train.attributes.departure_time}:${train.attributes.delay_minutes || 0}:${train.attributes.has_delay || false}`
     ).join('|');
   }
 
-  connectedCallback() {
-    this.startUpdateTimer();
-  }
-
-  disconnectedCallback() {
-    this.stopUpdateTimer();
-  }
-
+  /**
+   * Démarre un timer qui force un rendu de la carte à intervalles réguliers, ce qui est nécessaire pour capturer les changements de données en temps réel, surtout pour les données de train qui peuvent changer fréquemment
+   */
   startUpdateTimer() {
     this.stopUpdateTimer();
     this.updateInterval = setInterval(async () => {
@@ -100,6 +278,9 @@ class SncfTrainCard extends HTMLElement {
     }, this.config.update_interval);
   }
 
+  /**
+   * Arrête le timer de mise à jour pour éviter les fuites de mémoire lorsque la carte est retirée du DOM ou lorsque le device_id change, ce qui est important pour maintenir les performances et éviter les rendus inutiles
+   */
   stopUpdateTimer() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
@@ -107,158 +288,193 @@ class SncfTrainCard extends HTMLElement {
     }
   }
 
+  /**
+   * Récupère les entités de train associées au device_id configuré en utilisant l'API WebSocket de Home Assistant pour obtenir des données fraîches, filtre les trains qui ne sont pas encore passés, et trie les résultats par heure de départ pour n'afficher que les trains à venir, ce qui garantit que les informations affichées sont toujours à jour et pertinentes pour l'utilisateur
+   * @returns {Promise<Array>} Un tableau d'entités de train avec des données fraîches
+   */
   async getTrainEntities() {
     if (!this._hass) return [];
-    
+
     try {
       // Utiliser l'API Home Assistant pour récupérer toutes les entités
       const allEntityRegistry = await this._hass.callWS({
         type: 'config/entity_registry/list'
       });
-      
+
       // Filtrer les entités par device_id
-      const deviceEntities = allEntityRegistry.filter(entityInfo => 
+      const deviceEntities = allEntityRegistry.filter(entityInfo =>
         entityInfo.device_id === this.config.device_id
       );
-      
+
       if (!deviceEntities || deviceEntities.length === 0) {
         console.warn('⚠️ Aucune entité trouvée pour ce device_id dans le registre');
         return [];
       }
-      
+
       // Récupérer les états des entités train trouvées avec données fraîches
       const trainEntities = deviceEntities
         .filter(entityInfo => entityInfo.entity_id.includes('train'))
         .map(entityInfo => {
           // Forcer la récupération de l'état frais
-          const freshState = this._hass.states[entityInfo.entity_id];
-          return freshState;
+          return this._hass.states[entityInfo.entity_id];
         })
-        .filter(entity => entity && entity.attributes && entity.attributes.departure_time);
-      
+        .filter(entity => entity?.attributes?.departure_time);
+
       // Filtrer les trains qui ne sont pas encore passés
       const currentTime = new Date();
       const upcomingTrains = trainEntities.filter(entity => {
         const departureTime = this.parseTime(entity.attributes.departure_time);
         return departureTime >= currentTime;
       });
-      
-      const sortedEntities = upcomingTrains
+
+      return upcomingTrains
         .sort((a, b) => {
           const aTime = this.parseTime(a.attributes.departure_time);
           const bTime = this.parseTime(b.attributes.departure_time);
           return aTime - bTime;
         })
         .slice(0, this.config.train_lines);
-      
-      return sortedEntities;
-      
+
     } catch (error) {
       console.error('❌ Erreur lors de la récupération via API:', error);
       return [];
     }
   }
 
-  // Méthode pour parser correctement le format SNCF
+  /**
+   * Parse une chaîne de temps au format spécifique de la SNCF (ex: "19/11/2025 - 08:20") et retourne un objet Date, ou une date par défaut si le format est invalide ou si la chaîne est vide, ce qui permet de gérer correctement les données de temps fournies par les entités de train et d'éviter les erreurs d'affichage
+   * @param {string} departureTime - La chaîne de temps à parser, qui peut être au format SNCF ou un format standard reconnu par JavaScript
+   * @returns {Date} Un objet Date représentant le temps de départ, ou une date par défaut si le parsing échoue
+   */
   parseTime(departureTime) {
     if (!departureTime) {
       return new Date(0);
     }
-    
+
     // Format SNCF: "19/11/2025 - 08:20"
     if (departureTime.includes('/') && departureTime.includes(' - ')) {
       const parts = departureTime.split(' - ');
       if (parts.length === 2) {
         const datePart = parts[0]; // "19/11/2025"
         const timePart = parts[1]; // "08:20"
-        
+
         const dateComponents = datePart.split('/');
         if (dateComponents.length === 3) {
-          const day = parseInt(dateComponents[0]);
-          const month = parseInt(dateComponents[1]) - 1; // Mois 0-indexé
-          const year = parseInt(dateComponents[2]);
-          
+          const day = Number.parseInt(dateComponents[0]);
+          const month = Number.parseInt(dateComponents[1]) - 1; // Mois 0-indexé
+          const year = Number.parseInt(dateComponents[2]);
+
           const timeComponents = timePart.split(':');
           if (timeComponents.length === 2) {
-            const hour = parseInt(timeComponents[0]);
-            const minute = parseInt(timeComponents[1]);
-            
+            const hour = Number.parseInt(timeComponents[0]);
+            const minute = Number.parseInt(timeComponents[1]);
+
             return new Date(year, month, day, hour, minute);
           }
         }
       }
     }
-    
+
     // Fallback vers Date classique
     return new Date(departureTime);
   }
 
+  /**
+   * Calcule la position du train sur la barre de progression en fonction de l'heure actuelle et de l'heure de départ, en affichant le train 30 minutes avant le départ et en le faisant avancer vers la droite à mesure que l'heure de départ approche, ce qui crée une animation visuelle intuitive pour les utilisateurs afin de suivre l'approche du train vers la gare, et retourne une position en pourcentage (0% = train à gauche, 100% = train arrivé) ou une valeur négative pour indiquer que le train n'est pas encore visible, ce qui permet de gérer l'affichage du train de manière dynamique en fonction du temps restant avant le départ
+   * @param {string} departureTime - La chaîne de temps de départ à utiliser pour calculer la position du train, qui doit être au format reconnu par la méthode parseTime
+   * @param {Date} [currentTime] - L'heure actuelle à utiliser pour le calcul, qui peut être fournie pour les tests ou les rendus spécifiques, sinon la date actuelle sera utilisée par défaut
+   * @returns {number} Un nombre représentant la position du train en pourcentage (0-100) ou une valeur négative si le train n'est pas encore visible
+   */
   calculateTrainPosition(departureTime, currentTime) {
     if (!departureTime) {
       return -10;
     }
-    
+
     const departure = this.parseTime(departureTime);
-    
-    if (isNaN(departure.getTime())) {
+
+    if (Number.isNaN(departure.getTime())) {
       return -10;
     }
-    
+
     const now = currentTime || new Date();
     const diffMinutes = (departure - now) / (1000 * 60);
-    
+
     // Train apparaît 30 minutes avant l'heure
+    // todo : tester et s'assurer de la véracité / nom du param animation_duration
     const maxMinutes = this.config.animation_duration;
-    
+
     if (diffMinutes > maxMinutes) {
+      if(maxMinutes === 0) {
+        return 0;
+      }
       return -10; // Hors de la barre
     }
     if (diffMinutes <= 0) {
       return 100; // Arrivé à la gare
     }
-    
+
     // Position sur la barre (0% = gauche, 100% = droite)
     return ((maxMinutes - diffMinutes) / maxMinutes) * 100;
   }
 
+  /**
+   * Formate une chaîne de temps en une heure lisible au format français (ex: "08:20"), ou retourne "N/A" si la chaîne est vide, ou "Format invalide" si le parsing échoue, ce qui permet d'afficher les heures de départ et d'arrivée de manière claire et compréhensible pour les utilisateurs, tout en gérant les cas où les données de temps peuvent être manquantes ou mal formatées
+   * @param {string} timeString - La chaîne de temps à formater, qui doit être au format reconnu par la méthode parseTime
+   * @returns {string} Une chaîne représentant l'heure formatée ou un message d'erreur si le format est invalide
+   */
   formatTime(timeString) {
     if (!timeString) {
       return 'N/A';
     }
-    
+
     const time = this.parseTime(timeString);
-    
-    if (isNaN(time.getTime())) {
+
+    if (Number.isNaN(time.getTime())) {
       return 'Format invalide';
     }
-    
-    const result = time.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+
+    return time.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
-    
-    return result;
   }
 
+  /**
+   * Calcule l'heure d'arrivée réelle en ajoutant les minutes de retard à l'heure de départ prévue, et retourne une chaîne formatée de l'heure d'arrivée réelle, ou null si les données nécessaires sont manquantes ou si le train n'a pas de retard.
+   * @param departureTime - L'heure de départ
+   * @param delayMinutes - Le temps de retard en minutes
+   * @returns {string} Une chaîne représentant l'heure avec retard formatée ou null
+   */
+  // TODO : tester si encore utile ?
   calculateRealArrivalTime(departureTime, delayMinutes) {
     if (!departureTime || !delayMinutes || delayMinutes === 0) {
       return null;
     }
-    
+
     const originalTime = this.parseTime(departureTime);
     const realTime = new Date(originalTime.getTime() + (delayMinutes * 60000)); // Ajouter les minutes de retard
-    
-    return realTime.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+
+    return realTime.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }
 
+  /**
+   * Calcule la couleur du train en fonction du retard
+   * @param {number} delayMinutes - Le nombre de minutes de retard
+   * @param {boolean} hasDelay - Indique si le train a du retard ou non
+   * @returns {string} La couleur correspondante
+   */
   getTrainColor(delayMinutes, hasDelay) {
     if (!hasDelay || delayMinutes === 0) return '#4caf50'; // Vert à l'heure
     return '#f44336'; // Rouge en retard (peu importe le nombre de minutes)
   }
 
+  /**
+   * <b><u>Méthode héritée</u></b><br>
+   * Génération du rendu de l'ensemble de la carte, incluant le css et l'html
+   */
   async render() {
     if (!this._hass || !this.config) {
       return;
@@ -272,7 +488,7 @@ class SncfTrainCard extends HTMLElement {
     this._lastRenderTime = now;
 
     const trains = await this.getTrainEntities();
-    
+
     if (trains.length === 0) {
       this.shadowRoot.innerHTML = `
         <ha-card>
@@ -378,7 +594,7 @@ class SncfTrainCard extends HTMLElement {
           filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
         }
         
-        .train-emoji-axial-symmetry {
+        .train-emoji-axial-symmetry-true {
           transform: translateX(-50%) scaleX(-1);
         }
         
@@ -387,7 +603,6 @@ class SncfTrainCard extends HTMLElement {
           flex-direction: row;
           align-items: center;
           gap: 8px;
-          min-width: 120px;
         }
         
         .station-emoji {
@@ -459,54 +674,105 @@ class SncfTrainCard extends HTMLElement {
     `;
   }
 
+  /**
+   * Rendu des lignes de train en fonction des données fournies, en calculant la position de chaque train sur la barre de progression, en affichant les informations de départ et d'arrivée selon la configuration, et en appliquant des styles différents pour les trains en retards.
+   * @param {Array} trains - Un tableau d'entités de train à afficher, avec leurs attributs contenant les informations nécessaires pour le rendu
+   * @param {Date} currentTime - L'heure actuelle à utiliser pour le calcul de la position des trains, ce qui permet de faire avancer les trains vers la droite à mesure que l'heure de départ approche, et d'afficher les informations de retard de manière dynamique en fonction du temps restant avant le départ
+   * @returns {string} Une chaîne HTML représentant la section complète du train
+   */
   renderTrainLines(trains, currentTime) {
     return trains.map((train, index) => {
       const position = this.calculateTrainPosition(train.attributes.departure_time, currentTime);
       const delayMinutes = train.attributes.delay_minutes || 0;
       const hasDelay = train.attributes.has_delay || false;
       const trainColor = this.getTrainColor(delayMinutes, hasDelay);
-      const formattedTime = this.formatTime(train.attributes.departure_time);
-      const realArrivalTime = this.calculateRealArrivalTime(train.attributes.departure_time, delayMinutes);
-      
-      const html = `
-        <div class="train-line">
-          <div class="train-track ${hasDelay ? 'delayed' : ''}">
-            ${position >= 0 && position <= 100 ? `
-              <div class="train-emoji ${this.config.train_emoji_axial_symmetry ? "train-emoji-axial-symmetry" : ""}" 
-                   style="left: ${position}%; color: ${trainColor};">
+
+      let trainPositionHTML = ''
+        if (position >= 0 && position <= 100) {
+          trainPositionHTML = `
+            <div class="train-emoji train-emoji-axial-symmetry-${this.config.train_emoji_axial_symmetry}"
+              style="left: ${position}%; color: ${trainColor};">
                 ${this.config.train_emoji}
-              </div>
-            ` : `
-              <!-- Train hors barre: position ${position}% -->
-            `}
+            </div>
+            `
+        }
+
+      return `
+        <div class="train-line">
+          ${this.config.show_departure_station ? this.renderDeparture(train.attributes) : ''}
+          
+          <div class="train-track ${hasDelay ? 'delayed' : ''}">
+            ${trainPositionHTML}
           </div>
           
-          <div class="station">
-            <div class="station-emoji">${this.config.train_station_emoji}</div>
-            <div class="station-info">
-              <div class="arrival-time-container">
-                ${hasDelay && realArrivalTime ? `
-                  <div class="arrival-time original-time">${formattedTime}</div>
-                  <div class="arrival-time real-time">${realArrivalTime}</div>
-                ` : `
-                  <div class="arrival-time">${formattedTime}</div>
-                `}
-              </div>
-              <div class="delay-info ${hasDelay ? 'delay' : 'on-time'}">
-                ${hasDelay ? `+${delayMinutes}min` : 'À l\'heure'}
-              </div>
-            </div>
-          </div>
+          ${this.config.show_arrival_station ? this.renderArrival(train.attributes) : ''}
         </div>
       `;
-      
-      return html;
     }).join('');
   }
 
-  getCardSize() {
-    return Math.max(3, this.config.train_lines + 1);
+  /**
+   * Rendu de la section de départ pour un train donné, en affichant l'heure de départ prévue, l'heure de départ réelle si le train a du retard.
+   * @param {object} trainAttributes - Les attributs du train
+   * @returns {string} Une chaîne HTML représentant la section de départ du train
+   */
+  renderDeparture(trainAttributes) {
+    const hasDelay = trainAttributes.has_delay || false;
+    const delayMinutes = trainAttributes.delay_minutes || 0;
+    const departureTime = this.formatTime(trainAttributes.base_departure_time);
+    const realDepartureTime = this.formatTime(trainAttributes.departure_time);
+
+    return `
+      <div class="station">
+        <div class="station-info">
+          <div class="arrival-time-container">
+            ${hasDelay && realDepartureTime ? `
+              <div class="arrival-time original-time">${departureTime}</div>
+              <div class="arrival-time real-time">${realDepartureTime}</div>
+            ` : `
+              <div class="arrival-time">${departureTime}</div>
+            `}
+          </div>
+          <div class="delay-info ${hasDelay ? 'delay' : 'on-time'}">
+            ${hasDelay ? `+${delayMinutes}min` : 'À l\'heure'}
+          </div>
+        </div>
+        <div class="station-emoji">${this.config.departure_station_emoji}</div>
+      </div>
+    `
   }
+
+  /**
+   * Rendu de la section d'arrivée pour un train donné, en affichant l'heure d'arrivée prévue, l'heure d'arrivée réelle si le train a du retard.
+   * @param {object} trainAttributes - Les attributs du train
+   * @returns {string} Une chaîne HTML représentant la section d'arrivée du train
+   */
+  renderArrival(trainAttributes) {
+    const hasDelay = trainAttributes.has_delay || false;
+    const delayMinutes = trainAttributes.delay_minutes || 0;
+    const arrivalTime = this.formatTime(trainAttributes.base_arrival_time);
+    const realArrivalTime = this.formatTime(trainAttributes.arrival_time);
+
+    return `
+      <div class="station">
+        <div class="station-emoji">${this.config.arrival_station_emoji}</div>
+        <div class="station-info">
+          <div class="arrival-time-container">
+            ${hasDelay && realArrivalTime ? `
+              <div class="arrival-time original-time">${arrivalTime}</div>
+              <div class="arrival-time real-time">${realArrivalTime}</div>
+            ` : `
+              <div class="arrival-time">${arrivalTime}</div>
+            `}
+          </div>
+          <div class="delay-info ${hasDelay ? 'delay' : 'on-time'}">
+            ${hasDelay ? `+${delayMinutes}min` : 'À l\'heure'}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
 }
 
 // Définir l'élément custom

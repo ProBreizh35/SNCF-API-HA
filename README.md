@@ -115,6 +115,11 @@ La carte `sncf-train-card` est **automatiquement disponible** dans le sélecteur
 
 Dans un tableau de bord, cliquer sur **+ Ajouter une carte** → chercher **SNCF Train Card**.
 
+La configuration peut ensuite se faire :
+
+- via l'éditeur visuel Lovelace
+- ou via YAML
+
 Ou en YAML :
 
 ```yaml
@@ -123,6 +128,8 @@ device_id: VOTRE_DEVICE_ID
 ```
 
 ### 🔍 Trouver le `device_id`
+
+_S'obtient dynamiquement via la configuration visuelle._
 
 Le `device_id` correspond à l'appareil créé lors de la configuration du trajet.
 
@@ -139,11 +146,14 @@ Le `device_id` correspond à l'appareil créé lors de la configuration du traje
 | `device_id` | `string` | **obligatoire** | Identifiant de l'appareil SNCF (voir ci-dessus) |
 | `title` | `string` | `'Trains SNCF'` | Titre affiché en haut de la carte |
 | `train_lines` | `number` | `3` | Nombre de trains affichés simultanément |
-| `train_emoji` | `string` | `'🚅'` | Emoji du train animé sur la barre de progression |
-| `train_emoji_axial_symmetry` | `boolean` | `true` | Retourne l'emoji (à utiliser selon son sens) |
-| `train_station_emoji` | `string` | `'🚉'` | Emoji affiché à côté des gares |
 | `animation_duration` | `number` | `30` | Nombre de minutes avant l'arrivée en gare à partir duquel l'animation du train se déclenche (ex : `30` = animation active dans les 30 dernières minutes, `60` = dans la dernière heure) |
 | `update_interval` | `number` | `30000` | Intervalle de rafraîchissement de la carte en **millisecondes** |
+| `train_emoji_axial_symmetry` | `boolean` | `true` | Retourne l'emoji du train horizontalement |
+| `train_emoji` | `string` | `'🚅'` | Emoji du train animé sur la barre |
+| `show_departure_station` | `boolean` | `true` | Affiche ou masque les informations de départ |
+| `departure_station_emoji` | `string` | `''` | Emoji de la station de départ |
+| `show_arrival_station` | `boolean` | `true` | Affiche ou masque les informations d'arrivée |
+| `arrival_station_emoji` | `string` | `'🚉'` | Emoji de la station d'arrivée |
 
 ### Exemple complet
 
@@ -154,13 +164,17 @@ title: "Paris → Lyon"
 train_lines: 4
 train_emoji: "🚆"
 train_emoji_axial_symmetry: true
-train_station_emoji: "🏙️"
-animation_duration: 45
+show_departure_station: true
+departure_station_emoji: "🚉"
+show_arrival_station: true
+arrival_station_emoji: "🏙️"
+animation_duration: 0
 update_interval: 60000
 ```
 
 ### Exemple d'affichage
 
+![Exemple d'affichage](./assets/card_example.png)
 ![Exemple d'affichage](./assets/card_example.png)
 
 ---
