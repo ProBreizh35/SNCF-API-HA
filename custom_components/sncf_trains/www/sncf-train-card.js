@@ -509,164 +509,8 @@ class SncfTrainCard extends HTMLElement {
       return;
     }
 
-    const trainLinesHTML = this.renderTrainLines(trains);
     this.shadowRoot.innerHTML = `
-      <style>
-        ha-card {
-          padding: 16px;
-          background: var(--card-background-color, #fff);
-          color: var(--primary-text-color, #000);
-          border-radius: var(--ha-card-border-radius, 12px);
-          box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0,0,0,0.1));
-          overflow: hidden;
-        }
-        
-        .train-card {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        
-        .train-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 1.4em;
-          font-weight: 600;
-          color: var(--primary-color, #00539c);
-          border-bottom: 2px solid var(--divider-color, #e0e0e0);
-          padding-bottom: 10px;
-        }
-        
-        .train-line {
-          display: flex;
-          align-items: center;
-          margin-bottom: 24px;
-          position: relative;
-          min-height: 60px;
-        }
-        
-        .train-track {
-          position: relative;
-          flex: 1;
-          height: 8px;
-          background: linear-gradient(90deg, #ddd 0%, #bbb 50%, #ddd 100%);
-          border-radius: 4px;
-          margin: 0 16px;
-          overflow: visible;
-          box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-          transition: background 0.3s ease;
-        }
-        
-        .train-track.delayed {
-          background: linear-gradient(90deg, #ffcdd2 0%, #e57373 50%, #ffcdd2 100%);
-          box-shadow: inset 0 2px 4px rgba(244,67,54,0.3);
-        }
-        
-        .train-track::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: repeating-linear-gradient(
-            90deg,
-            #999 0px,
-            #999 10px,
-            transparent 10px,
-            transparent 20px
-          );
-          transform: translateY(-50%);
-          transition: background 0.3s ease;
-        }
-        
-        .train-track.delayed::before {
-          background: repeating-linear-gradient(
-            90deg,
-            #d32f2f 0px,
-            #d32f2f 10px,
-            transparent 10px,
-            transparent 20px
-          );
-        }
-        
-        .train-emoji {
-          position: absolute;
-          top: -37px;
-          transform: translateX(-50%);
-          font-size: 2em;
-          transition: left 0.5s ease-in-out;
-          z-index: 10;
-          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-        }
-        
-        .train-emoji-axial-symmetry-true {
-          transform: translateX(-50%) scaleX(-1);
-        }
-        
-        .station {
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-          gap: 8px;
-        }
-        
-        .station-emoji {
-          font-size: 1.8em;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-        }
-        
-        .station-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        
-        .arrival-time {
-          font-size: 1.1em;
-          font-weight: 600;
-          color: var(--primary-color, #00539c);
-        }
-        
-        .arrival-time-container {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        
-        .original-time {
-          text-decoration: line-through;
-          color: var(--secondary-text-color, #666);
-          font-size: 0.9em;
-        }
-        
-        .real-time {
-          color: var(--error-color, #f44336);
-          font-weight: 700;
-        }
-        
-        .delay-info {
-          font-size: 0.8em;
-          font-weight: 600;
-          margin-top: 2px;
-        }
-        
-        .on-time {
-          color: var(--success-color, #4caf50);
-        }
-        
-        .delay {
-          color: var(--error-color, #f44336);
-        }
-        
-        .error {
-          color: var(--error-color, #f44336);
-          text-align: center;
-          padding: 20px;
-          font-weight: 500;
-        }
-      </style>
+      ${this.renderCss()}
       
       <ha-card>
         <div class="train-card">
@@ -674,7 +518,7 @@ class SncfTrainCard extends HTMLElement {
             <div>${this.config.title}</div>
           </div>
           
-          ${trainLinesHTML}
+          ${this.renderTrainLines(trains)}
           
         </div>
       </ha-card>
@@ -684,14 +528,16 @@ class SncfTrainCard extends HTMLElement {
   /**
    * Rendu des lignes de train en fonction des données fournies, en calculant la position de chaque train sur la barre de progression, en affichant les informations de départ et d'arrivée selon la configuration, et en appliquant des styles différents pour les trains en retards.
    * @param {Array} trains - Un tableau d'entités de train à afficher, avec leurs attributs contenant les informations nécessaires pour le rendu
-   * @param {Date} currentTime - L'heure actuelle à utiliser pour le calcul de la position des trains, ce qui permet de faire avancer les trains vers la droite à mesure que l'heure de départ approche, et d'afficher les informations de retard de manière dynamique en fonction du temps restant avant le départ
    * @returns {string} Une chaîne HTML représentant la section complète du train
    */
   renderTrainLines(trains) {
     return trains.map((train, index) => {
-      const position = this.calculateTrainPosition(train.attributes);
-      const delayMinutes = train.attributes.delay_minutes || 0;
-      const hasDelay = train.attributes.has_delay || false;
+      const TA = train.attributes;
+      const position = this.calculateTrainPosition(TA);
+      const delayMinutes = TA.delay_minutes || 0;
+      const hasDelay = TA.has_delay || false;
+      const isRunning = this.parseTime(TA.departure_time) < new Date() && new Date() < this.parseTime(TA.arrival_time)
+      const isArrived = new Date() > this.parseTime(TA.arrival_time)
       const trainColor = this.getTrainColor(delayMinutes, hasDelay);
 
       let trainPositionHTML = ''
@@ -704,16 +550,17 @@ class SncfTrainCard extends HTMLElement {
             `
         }
 
+      const theme = isArrived ? 'arrived' : hasDelay ? 'delayed' : isRunning ? 'running' : '';
       return `
         <div class="train-line">
-          ${this.config.show_departure_station ? this.renderDeparture(train.attributes) : ''}
+          ${this.config.show_departure_station ? this.renderDeparture(TA) : ''}
           
           <!-- TODO : afficher la barre d'une couleur différente lorsque le train est parti -->
-          <div class="train-track ${hasDelay ? 'delayed' : ''}">
+          <div class="train-track ${theme}">
             ${trainPositionHTML}
           </div>
           
-          ${this.config.show_arrival_station ? this.renderArrival(train.attributes) : ''}
+          ${this.config.show_arrival_station ? this.renderArrival(TA) : ''}
         </div>
       `;
     }).join('');
@@ -726,6 +573,7 @@ class SncfTrainCard extends HTMLElement {
    */
   renderDeparture(trainAttributes) {
     const hasDelay = trainAttributes.has_delay || false;
+    const isGone = new Date() > this.parseTime(trainAttributes.departure_time)
     const delayMinutes = trainAttributes.delay_minutes || 0;
     const departureTime = this.formatTime(trainAttributes.base_departure_time);
     const realDepartureTime = this.formatTime(trainAttributes.departure_time);
@@ -742,7 +590,7 @@ class SncfTrainCard extends HTMLElement {
             `}
           </div>
           <div class="delay-info ${hasDelay ? 'delay' : 'on-time'}">
-            ${hasDelay ? `+${delayMinutes}min` : 'À l\'heure'}
+            ${hasDelay ? `+${delayMinutes}min` : isGone ? 'Parti' : 'À l\'heure'}
           </div>
         </div>
         <div class="station-emoji">${this.config.departure_station_emoji}</div>
@@ -757,6 +605,7 @@ class SncfTrainCard extends HTMLElement {
    */
   renderArrival(trainAttributes) {
     const hasDelay = trainAttributes.has_delay || false;
+    const isArrived = new Date() > this.parseTime(trainAttributes.arrival_time)
     const delayMinutes = trainAttributes.delay_minutes || 0;
     const arrivalTime = this.formatTime(trainAttributes.base_arrival_time);
     const realArrivalTime = this.formatTime(trainAttributes.arrival_time);
@@ -774,10 +623,201 @@ class SncfTrainCard extends HTMLElement {
             `}
           </div>
           <div class="delay-info ${hasDelay ? 'delay' : 'on-time'}">
-            ${hasDelay ? `+${delayMinutes}min` : 'À l\'heure'}
+            ${hasDelay ? `+${delayMinutes}min` : isArrived ? 'Arrivé' : 'À l\'heure'}
           </div>
         </div>
       </div>
+    `;
+  }
+
+  /**
+   * Rendu du CSS pour la carte, en définissant les styles de base pour la carte, les lignes de train, les barres de progression, les emojis, et les informations de station
+   * @return {string} Une chaîne HTML contenant les styles CSS pour la carte.
+   */
+  renderCss() {
+    return `
+      <style>
+        ha-card {
+          padding: 16px;
+          background: var(--card-background-color, #fff);
+          color: var(--primary-text-color, #000);
+          border-radius: var(--ha-card-border-radius, 12px);
+          box-shadow: var(--ha-card-box-shadow, 0 2px 4px rgba(0,0,0,0.1));
+          overflow: hidden;
+        }
+      
+        .train-card {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+    
+        .train-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 1.4em;
+          font-weight: 600;
+          color: var(--primary-color, #00539c);
+          border-bottom: 2px solid var(--divider-color, #e0e0e0);
+          padding-bottom: 10px;
+        }
+      
+        .train-line {
+          display: flex;
+          align-items: center;
+          margin-bottom: 24px;
+          position: relative;
+          min-height: 60px;
+        }
+      
+        .train-track {
+          position: relative;
+          flex: 1;
+          height: 8px;
+          background: linear-gradient(90deg, #ddd 0%, #bbb 50%, #ddd 100%);
+          border-radius: 4px;
+          margin: 0 16px;
+          overflow: visible;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+          transition: background 0.3s ease;
+        }
+      
+        .train-track.delayed {
+          background: linear-gradient(90deg, #ffcdd2 0%, #e57373 50%, #ffcdd2 100%);
+          box-shadow: inset 0 2px 4px rgba(244,67,54,0.3);
+        }
+      
+        .train-track.running {
+          background: linear-gradient(90deg, #d2cdff 0%, #7373e5 50%, #d2cdff 100%);
+          box-shadow: inset 0 2px 4px rgba(54,67,244,0.3);
+        }
+      
+        .train-track.arrived {
+          background: linear-gradient(90deg, #cdffd2 0%, #73e573 50%, #cdffd2 100%);
+          box-shadow: inset 0 2px 4px rgba(67,244,54,0.3);
+        }
+      
+        .train-track::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: repeating-linear-gradient(
+          90deg,
+          #999 0px,
+          #999 10px,
+          transparent 10px,
+          transparent 20px
+          );
+          transform: translateY(-50%);
+          transition: background 0.3s ease;
+        }
+      
+        .train-track.delayed::before {
+          background: repeating-linear-gradient(
+          90deg,
+          #d32f2f 0px,
+          #d32f2f 10px,
+          transparent 10px,
+          transparent 20px
+          );
+        }
+        
+        .train-track.running::before {
+          background: repeating-linear-gradient(
+          90deg,
+          #2f2fd3 0px,
+          #2f2fd3 10px,
+          transparent 10px,
+          transparent 20px
+          );
+        }
+        
+        .train-track.arrived::before {
+          background: repeating-linear-gradient(
+          90deg,
+          #2fd32f 0px,
+          #2fd32f 10px,
+          transparent 10px,
+          transparent 20px
+          );
+        }
+      
+        .train-emoji {
+          position: absolute;
+          top: -37px;
+          transform: translateX(-50%);
+          font-size: 2em;
+          transition: left 0.5s ease-in-out;
+          z-index: 10;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+      
+        .train-emoji-axial-symmetry-true {
+          transform: translateX(-50%) scaleX(-1);
+        }
+      
+        .station {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
+        }
+      
+        .station-emoji {
+          font-size: 1.8em;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+      
+        .station-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+      
+        .arrival-time {
+          font-size: 1.1em;
+          font-weight: 600;
+          color: var(--primary-color, #00539c);
+        }
+      
+        .arrival-time-container {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+      
+        .original-time {
+          text-decoration: line-through;
+          color: var(--secondary-text-color, #666);
+          font-size: 0.9em;
+        }
+      
+        .real-time {
+          color: var(--error-color, #f44336);
+          font-weight: 700;
+        }
+      
+        .delay-info {
+          font-size: 0.8em;
+          font-weight: 600;
+          margin-top: 2px;
+        }
+      
+        .on-time {
+          color: var(--success-color, #4caf50);
+        }
+      
+        .error {
+          color: var(--error-color, #f44336);
+          text-align: center;
+          padding: 20px;
+          font-weight: 500;
+        }
+      </style>
     `;
   }
 
