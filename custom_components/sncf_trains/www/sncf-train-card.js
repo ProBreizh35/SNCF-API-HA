@@ -320,17 +320,25 @@ class SncfTrainCard extends HTMLElement {
         })
         .filter(entity => entity?.attributes?.departure_time);
 
+      // Source - https://stackoverflow.com/a/1214753
+      // Posted by Kip, modified by community. See post 'Timeline' for change history
+      // Retrieved 2026-05-15, License - CC BY-SA 4.0
+      const addMinutes = (date, minutes) => {
+        return new Date(date.getTime() + minutes*60000);
+      }
+
       // Filtrer les trains qui ne sont pas encore passés
       const currentTime = new Date();
       const upcomingTrains = trainEntities.filter(entity => {
-        const departureTime = this.parseTime(entity.attributes.departure_time);
-        return departureTime >= currentTime;
+        // TODO : paramétrer le temps d'affichage max d'un train arrivé en gare
+        const arrivalTime = addMinutes(this.parseTime(entity.attributes.arrival_time), 30);
+        return arrivalTime >= currentTime;
       });
 
       return upcomingTrains
         .sort((a, b) => {
-          const aTime = this.parseTime(a.attributes.departure_time);
-          const bTime = this.parseTime(b.attributes.departure_time);
+          const aTime = this.parseTime(a.attributes.arrival_time);
+          const bTime = this.parseTime(b.attributes.arrival_time);
           return aTime - bTime;
         })
         .slice(0, this.config.train_lines);
@@ -381,40 +389,41 @@ class SncfTrainCard extends HTMLElement {
 
   /**
    * Calcule la position du train sur la barre de progression en fonction de l'heure actuelle et de l'heure de départ, en affichant le train 30 minutes avant le départ et en le faisant avancer vers la droite à mesure que l'heure de départ approche, ce qui crée une animation visuelle intuitive pour les utilisateurs afin de suivre l'approche du train vers la gare, et retourne une position en pourcentage (0% = train à gauche, 100% = train arrivé) ou une valeur négative pour indiquer que le train n'est pas encore visible, ce qui permet de gérer l'affichage du train de manière dynamique en fonction du temps restant avant le départ
-   * @param {string} departureTime - La chaîne de temps de départ à utiliser pour calculer la position du train, qui doit être au format reconnu par la méthode parseTime
-   * @param {Date} [currentTime] - L'heure actuelle à utiliser pour le calcul, qui peut être fournie pour les tests ou les rendus spécifiques, sinon la date actuelle sera utilisée par défaut
+   * @param {object} trainAttributes - Les attributs du train, qui doivent inclure au minimum une heure de départ valide pour que le calcul fonctionne correctement, et peuvent inclure d'autres informations pour personnaliser l'affichage
    * @returns {number} Un nombre représentant la position du train en pourcentage (0-100) ou une valeur négative si le train n'est pas encore visible
    */
-  calculateTrainPosition(departureTime, currentTime) {
-    if (!departureTime) {
+  calculateTrainPosition(trainAttributes) {
+    if (!trainAttributes.departure_time || !trainAttributes.arrival_time) {
       return -10;
     }
 
-    const departure = this.parseTime(departureTime);
+    const departure = this.parseTime(trainAttributes.departure_time);
+    const arrival = this.parseTime(trainAttributes.arrival_time);
+    const travelTime = (arrival - departure) / (1000 * 60);
 
-    if (Number.isNaN(departure.getTime())) {
+    if (Number.isNaN(departure.getTime()) || Number.isNaN(arrival.getTime()) || travelTime < 0) {
       return -10;
     }
 
-    const now = currentTime || new Date();
-    const diffMinutes = (departure - now) / (1000 * 60);
+    const now = new Date();
+    const diffMinutes = (arrival - now) / (1000 * 60);
 
-    // Train apparaît 30 minutes avant l'heure
-    // todo : tester et s'assurer de la véracité / nom du param animation_duration
-    const maxMinutes = this.config.animation_duration;
-
-    if (diffMinutes > maxMinutes) {
-      if(maxMinutes === 0) {
+    if (diffMinutes > travelTime) {
+      // todo : tester et s'assurer de la véracité / nom du param animation_duration
+      if (this.config.animation_duration === 0 || this.config.animation_duration > diffMinutes - travelTime) {
+        // Train apparaît X minutes avant l'heure
         return 0;
       }
-      return -10; // Hors de la barre
+      // Hors de la barre
+      return -10;
     }
     if (diffMinutes <= 0) {
-      return 100; // Arrivé à la gare
+      // Arrivé à la gare
+      return 100;
     }
 
     // Position sur la barre (0% = gauche, 100% = droite)
-    return ((maxMinutes - diffMinutes) / maxMinutes) * 100;
+    return ((travelTime - diffMinutes) / travelTime) * 100;
   }
 
   /**
@@ -500,9 +509,7 @@ class SncfTrainCard extends HTMLElement {
       return;
     }
 
-    const currentTime = new Date();
-
-    const trainLinesHTML = this.renderTrainLines(trains, currentTime);
+    const trainLinesHTML = this.renderTrainLines(trains);
     this.shadowRoot.innerHTML = `
       <style>
         ha-card {
@@ -680,9 +687,9 @@ class SncfTrainCard extends HTMLElement {
    * @param {Date} currentTime - L'heure actuelle à utiliser pour le calcul de la position des trains, ce qui permet de faire avancer les trains vers la droite à mesure que l'heure de départ approche, et d'afficher les informations de retard de manière dynamique en fonction du temps restant avant le départ
    * @returns {string} Une chaîne HTML représentant la section complète du train
    */
-  renderTrainLines(trains, currentTime) {
+  renderTrainLines(trains) {
     return trains.map((train, index) => {
-      const position = this.calculateTrainPosition(train.attributes.departure_time, currentTime);
+      const position = this.calculateTrainPosition(train.attributes);
       const delayMinutes = train.attributes.delay_minutes || 0;
       const hasDelay = train.attributes.has_delay || false;
       const trainColor = this.getTrainColor(delayMinutes, hasDelay);
@@ -701,6 +708,7 @@ class SncfTrainCard extends HTMLElement {
         <div class="train-line">
           ${this.config.show_departure_station ? this.renderDeparture(train.attributes) : ''}
           
+          <!-- TODO : afficher la barre d'une couleur différente lorsque le train est parti -->
           <div class="train-track ${hasDelay ? 'delayed' : ''}">
             ${trainPositionHTML}
           </div>
