@@ -409,7 +409,7 @@ class SncfTrainCard extends HTMLElement {
     const diffMinutes = (arrival - now) / (1000 * 60);
 
     if (diffMinutes > travelTime) {
-      // todo : tester et s'assurer de la véracité / nom du param animation_duration
+      // TODO : tester et s'assurer de la véracité / nom du param animation_duration
       if (this.config.animation_duration === 0 || this.config.animation_duration > diffMinutes - travelTime) {
         // Train apparaît X minutes avant l'heure
         return 0;
@@ -526,6 +526,18 @@ class SncfTrainCard extends HTMLElement {
   }
 
   /**
+   * Rendu des icônes en fonction de la configuration, en vérifiant si l'icône est un emoji simple ou une icône HA (mdi:, fa:, ic:, ...), et en retournant le HTML approprié pour chaque cas.
+   * @param icone - La chaîne de caractères représentant l'icône configurée, qui peut être un emoji simple ou une icône HA avec un préfixe spécifique, et qui doit être traitée différemment pour s'assurer qu'elle s'affiche correctement dans la carte
+   * @return {string} Une chaîne HTML représentant l'icône à afficher, soit en utilisant la balise <ha-icon> pour les icônes HA, soit en affichant directement l'emoji pour les emojis simples, ce qui permet de gérer une grande variété d'icônes de manière flexible et personnalisable
+   */
+  renderIcone(icone) {
+    if (icone?.includes(':')) {
+      return `<ha-icon icon="${icone}" class="mdi-icon"></ha-icon>`;
+    }
+    return icone;
+  }
+
+  /**
    * Rendu des lignes de train en fonction des données fournies, en calculant la position de chaque train sur la barre de progression, en affichant les informations de départ et d'arrivée selon la configuration, et en appliquant des styles différents pour les trains en retards.
    * @param {Array} trains - Un tableau d'entités de train à afficher, avec leurs attributs contenant les informations nécessaires pour le rendu
    * @returns {string} Une chaîne HTML représentant la section complète du train
@@ -540,24 +552,18 @@ class SncfTrainCard extends HTMLElement {
       const isArrived = new Date() > this.parseTime(TA.arrival_time)
       const trainColor = this.getTrainColor(delayMinutes, hasDelay);
 
-      let trainPositionHTML = ''
-        if (position >= 0 && position <= 100) {
-          trainPositionHTML = `
-            <div class="train-emoji train-emoji-axial-symmetry-${this.config.train_emoji_axial_symmetry}"
-              style="left: ${position}%; color: ${trainColor};">
-                ${this.config.train_emoji}
-            </div>
-            `
-        }
-
       const theme = isArrived ? 'arrived' : hasDelay ? 'delayed' : isRunning ? 'running' : '';
       return `
         <div class="train-line">
           ${this.config.show_departure_station ? this.renderDeparture(TA) : ''}
           
-          <!-- TODO : afficher la barre d'une couleur différente lorsque le train est parti -->
           <div class="train-track ${theme}">
-            ${trainPositionHTML}
+            ${ position >= 0 ?
+            `<div class="train-emoji train-emoji-axial-symmetry-${this.config.train_emoji_axial_symmetry}"
+              style="left: ${position}%; color: ${trainColor};">
+                ${this.renderIcone(this.config.train_emoji)}
+            </div>` : ''
+            }
           </div>
           
           ${this.config.show_arrival_station ? this.renderArrival(TA) : ''}
@@ -593,7 +599,7 @@ class SncfTrainCard extends HTMLElement {
             ${hasDelay ? `+${delayMinutes}min` : isGone ? 'Parti' : 'À l\'heure'}
           </div>
         </div>
-        <div class="station-emoji">${this.config.departure_station_emoji}</div>
+        <div class="station-emoji">${this.renderIcone(this.config.departure_station_emoji)}</div>
       </div>
     `
   }
@@ -612,7 +618,7 @@ class SncfTrainCard extends HTMLElement {
 
     return `
       <div class="station">
-        <div class="station-emoji">${this.config.arrival_station_emoji}</div>
+        <div class="station-emoji">${this.renderIcone(this.config.arrival_station_emoji)}</div>
         <div class="station-info">
           <div class="arrival-time-container">
             ${hasDelay && realArrivalTime ? `
@@ -755,7 +761,7 @@ class SncfTrainCard extends HTMLElement {
           z-index: 10;
           filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
         }
-      
+
         .train-emoji-axial-symmetry-true {
           transform: translateX(-50%) scaleX(-1);
         }
@@ -771,7 +777,7 @@ class SncfTrainCard extends HTMLElement {
           font-size: 1.8em;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
-      
+
         .station-info {
           display: flex;
           flex-direction: column;
