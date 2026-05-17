@@ -3,6 +3,7 @@
 from pathlib import Path
 from types import MappingProxyType
 from logging import getLogger
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant, CoreState, EVENT_HOMEASSISTANT_STARTED
